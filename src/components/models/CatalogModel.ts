@@ -1,5 +1,6 @@
 import { IProduct } from "../../types";
 import { IEvents } from "../base/Events";
+import { appEvents } from "../../utils/constants";
 
 export class CatalogModel {
     private products: IProduct[] = [];
@@ -9,6 +10,7 @@ export class CatalogModel {
 
     setProducts(products: IProduct[]): void {
         this.products = products;
+        this.events.emit(appEvents.catalogChanged);
     }
 
     getProducts(): IProduct[] {
@@ -21,6 +23,7 @@ export class CatalogModel {
 
     setSelectedProduct(product: IProduct): void {
         this.selectedProduct = product;
+        this.events.emit(appEvents.selectionChanged);
     }
 
     getSelectedProduct(): IProduct | null {

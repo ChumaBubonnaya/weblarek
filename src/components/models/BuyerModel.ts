@@ -1,8 +1,9 @@
-import { IBuyer, TPayment, TFormErrors} from "../../types";
+import { IBuyer, TFormErrors} from "../../types";
 import { IEvents } from "../base/Events";
+import { appEvents } from "../../utils/constants";
 
 export class BuyerModel {
-    private payment: TPayment = '';
+    private payment: IBuyer['payment'] = '';
     private address: string = '';
     private phone: string = '';
     private email: string = '';
@@ -14,6 +15,7 @@ export class BuyerModel {
         if (data.email !== undefined) this.email = data.email;
         if (data.payment !== undefined) this.payment = data.payment;
         if (data.phone !== undefined) this.phone = data.phone;
+        this.events.emit(appEvents.buyerChanged);
     }
 
     getData(): IBuyer {
@@ -30,6 +32,7 @@ export class BuyerModel {
         this.email = '';
         this.payment = '';
         this.phone = '';
+        this.events.emit(appEvents.buyerChanged);
     }
 
     validate(): TFormErrors {
