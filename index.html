@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 
-    <title>Vite + TS</title>
+    <title>Веб-ларёк — товары для разработчиков</title>
   </head>
   <body class="page">
     <div class="page__wrapper">
@@ -18,7 +18,7 @@
           <a class="header__logo" href="/">
             <img class="header__logo-image" src="./src/images/logo.svg" alt="Web-Larek! logo" />
           </a>
-          <button class="header__basket">
+          <button class="header__basket" aria-label="Корзина. Товаров: 0">
             <span class="header__basket-counter">0</span>
           </button>
         </div>
@@ -27,7 +27,7 @@
       <main class="gallery"></main>
     </div>
 
-    <div class="modal" id="modal-container">
+    <div class="modal" id="modal-container" role="dialog" aria-modal="true" aria-label="Веб-ларёк" aria-hidden="true">
       <div class="modal__container">
         <button class="modal__close" aria-label="закрыть"></button>
         <div class="modal__content">
@@ -35,6 +35,14 @@
         </div>
       </div>
     </div>
+
+    <template id="catalog-error">
+      <div class="catalog-error">
+        <h2 class="modal__title">Не удалось загрузить каталог</h2>
+        <p class="catalog-error__message" role="alert"></p>
+        <button class="button catalog-error__retry">Повторить загрузку</button>
+      </div>
+    </template>
 
     <template id="success">
       <div class="order-success">
@@ -102,7 +110,7 @@
           </div>
           <label class="order__field">
             <span class="form__label modal__title">Адрес доставки</span>
-            <input name="address" class="form__input" type="text" placeholder="Введите адрес" />
+            <input name="address" class="form__input" type="text" autocomplete="street-address" placeholder="Введите адрес" />
           </label>
         </div>
         <div class="modal__actions">
@@ -117,11 +125,11 @@
         <div class="order">
           <label class="order__field">
             <span class="form__label modal__title">Email</span>
-            <input name="email" class="form__input" type="text" placeholder="Введите Email" />
+            <input name="email" class="form__input" type="text" inputmode="email" autocomplete="email" placeholder="Введите Email" />
           </label>
           <label class="order__field">
             <span class="form__label modal__title">Телефон</span>
-            <input name="phone" class="form__input" type="text" placeholder="+7 (" />
+            <input name="phone" class="form__input" type="tel" autocomplete="tel" placeholder="+7 (" />
           </label>
         </div>
         <div class="modal__actions">

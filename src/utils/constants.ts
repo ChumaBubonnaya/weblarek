@@ -20,3 +20,20 @@ export const settings = {
 
 };
 
+export const appEvents = {
+  catalogChanged: 'catalog:changed',
+  selectionChanged: 'catalog:selection-changed',
+  cartChanged: 'cart:changed',
+  buyerChanged: 'buyer:changed',
+  requestChanged: 'order-request:changed',
+  productSelected: 'product:select',
+  productAction: 'product:action',
+  productRemoved: 'cart:remove',
+  cartOpened: 'cart:open',
+  checkoutStarted: 'checkout:start',
+  deliverySubmitted: 'delivery:submit',
+  contactsSubmitted: 'contacts:submit',
+  buyerInput: 'buyer:input',
+  closeRequested: 'modal:close-request',
+  catalogRetried: 'catalog:retry',
+} as const;

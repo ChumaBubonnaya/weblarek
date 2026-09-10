@@ -10,15 +10,16 @@
     padding: 0 2rem 0 0;
     margin: 0;
     flex-grow: 1;
+    min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
   
-  &__list:not(:has(> *))::before {
-    content: 'Корзина пуста';
+  &__empty {
     opacity: 0.3;
     display: block;
     text-align: left;
-    font-style: regular;
+    list-style: none;
     font-weight: 400;
   }
 
