@@ -9,9 +9,11 @@
 Нужен Node.js 22.12+ (или 20.19+) и npm.
 
 1. Выполните `npm ci` в папке проекта.
-2. Скопируйте `.env.example` в `.env` в корне проекта. В PowerShell:
-   `Copy-Item .env.example .env`; в bash: `cp .env.example .env`.
-3. Проверьте строку `VITE_API_ORIGIN=https://larek-api.nomoreparties.co`.
+2. По умолчанию используется учебный сервер `https://larek-api.nomoreparties.co`;
+   локальный `.env` для запуска не обязателен.
+3. Если нужен другой сервер, скопируйте `.env.example` в `.env` и задайте
+   `VITE_API_ORIGIN`. В PowerShell: `Copy-Item .env.example .env`;
+   в bash: `cp .env.example .env`. Указывайте только origin, без `/api/weblarek`.
 4. Выполните `npm run dev` и откройте адрес, который выведет Vite.
 
 | Команда | Назначение |
@@ -22,7 +24,11 @@
 | `npm test` | Проверки интерфейса и событий в Vitest/jsdom |
 
 `.env` не добавляется в Git. При изменении переменных окружения перезапустите
-сервер разработки. На GitHub Pages нужно публиковать результат сборки,
+сервер разработки; для production-сборки повторите `npm run build`.
+Файл `.env.example` служит образцом и не читается Vite автоматически.
+`npm run build` собирает файлы, но не запускает сайт. Для просмотра сборки
+выполните `npm run build`, затем `npm run preview` и откройте выведенный адрес.
+На GitHub Pages нужно публиковать результат сборки,
 а не исходный `index.html` с TypeScript.
 
 ## Организация кода
@@ -41,6 +47,7 @@
 | `src/common.blocks/`, `src/scss/` | Блоки стилей, переменные, миксины |
 | `tests/storefront.test.ts` | Сценарии магазина и регрессии презентера с подменой API |
 | `tests/views.test.ts` | Проверки самостоятельных компонентов представления |
+| `tests/configuration.test.ts` | Адреса API/CDN без .env, с пустым значением и при переопределении |
 
 Файл `src/pages/index.html` и данные `src/utils/data.ts` остались от стартового
 набора. Точкой входа Vite является корневой `index.html`; тестовые данные
@@ -231,8 +238,12 @@
 - `getProductList(): Promise<IProductListResponse>` запрашивает `/product` через `Api.get`.
 - `orderProducts(order: IOrder): Promise<IOrderResponse>` отправляет `/order` через `Api.post`.
 
-`API_URL` объединяет `VITE_API_ORIGIN` и `/api/weblarek`, `CDN_URL` — тот же
-origin и `/content/weblarek`. Полный адрес изображения составляет презентер.
+`API_URL` объединяет `API_ORIGIN` и `/api/weblarek`, `CDN_URL` — тот же
+origin и `/content/weblarek`. `API_ORIGIN` берётся из непустого `VITE_API_ORIGIN`
+или из `DEFAULT_API_ORIGIN` (`https://larek-api.nomoreparties.co`). Крайние
+пробелы и завершающие слеши удаляются. Поэтому отсутствие `.env` не превращает
+адрес запроса в `undefined/api/weblarek`. Полный адрес изображения составляет
+презентер; реальные товары по-прежнему загружаются с API.
 
 ## Слой представления
 
@@ -465,7 +476,8 @@ Callback брокера сообщает `cart:remove` с id; строка не 
 и повторную попытку. Дополнительные проверки контролируют отсутствие повторной
 записи полей при открытии и изменении запроса, независимую валидацию контактов,
 самостоятельное закрытие ModalView, собственное событие ReceiptView и разделение
-общих полей карточек. Всего 19 проверок. Ответы API подменены: тесты не создают
+общих полей карточек. Также проверяются адреса сервера без `.env`, с пустым
+значением и при явном переопределении. Всего 23 проверки. Ответы API подменены: тесты не создают
 заказы на сервере.
 
 Перед сдачей выполните `npm run build` и `npm test`, затем откройте `npm run dev`
