@@ -67,3 +67,7 @@ export type TOrderRequestState = {
     error: string;
     receipt: IOrderResponse | null;
 };
+
+export type TCardBase = Pick<TCardContent, 'title' | 'price'>;
+export type TIllustratedCard = TCardBase & Required<Pick<TCardContent, 'image' | 'category'>>;
+export type TContactView = TContactForm & { requestError: string };

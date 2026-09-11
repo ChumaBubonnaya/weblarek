@@ -133,8 +133,13 @@
           </label>
         </div>
         <div class="modal__actions">
-          <button type="submit" disabled class="button">Оплатить</button>
-          <span class="form__errors"></span>
+          <fieldset class="form__submit">
+            <button type="submit" disabled class="button">Оплатить</button>
+          </fieldset>
+          <span class="form__messages">
+            <span class="form__errors"></span>
+            <span class="form__request-error" role="alert"></span>
+          </span>
         </div>
       </form>
     </template>

@@ -2,9 +2,9 @@ import { TProductDetails } from '../../types';
 import { appEvents } from '../../utils/constants';
 import { ensureElement } from '../../utils/utils';
 import { IEvents } from '../base/Events';
-import { ProductCard } from './ProductCard';
+import { IllustratedProductCard } from './IllustratedProductCard';
 
-export class ProductDetails extends ProductCard<TProductDetails> {
+export class ProductDetails extends IllustratedProductCard<TProductDetails> {
     protected readonly descriptionElement: HTMLElement;
     protected readonly actionButton: HTMLButtonElement;
 

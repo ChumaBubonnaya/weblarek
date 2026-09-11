@@ -18,6 +18,9 @@ export class CartView extends Component<TCartView> {
         this.emptyElement = document.createElement('li');
         this.emptyElement.className = 'basket__empty';
         this.emptyElement.textContent = 'Корзина пуста';
+        this.items = [];
+        this.total = 0;
+        this.canCheckout = false;
         this.checkoutButton.addEventListener('click', () => events.emit(appEvents.checkoutStarted));
     }
 

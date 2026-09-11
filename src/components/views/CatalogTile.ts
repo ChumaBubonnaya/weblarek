@@ -1,7 +1,7 @@
 import { TCatalogTile } from '../../types';
-import { ProductCard } from './ProductCard';
+import { IllustratedProductCard } from './IllustratedProductCard';
 
-export class CatalogTile extends ProductCard<TCatalogTile> {
+export class CatalogTile extends IllustratedProductCard<TCatalogTile> {
     constructor(container: HTMLElement, onSelect: () => void) {
         super(container);
         this.container.addEventListener('click', onSelect);

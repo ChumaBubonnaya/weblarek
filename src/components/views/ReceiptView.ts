@@ -12,7 +12,7 @@ export class ReceiptView extends Component<TReceiptView> {
         super(container);
         this.descriptionElement = ensureElement('.order-success__description', container);
         this.closeButton = ensureElement<HTMLButtonElement>('.order-success__close', container);
-        this.closeButton.addEventListener('click', () => events.emit(appEvents.closeRequested));
+        this.closeButton.addEventListener('click', () => events.emit(appEvents.receiptClosed));
     }
 
     set total(value: number) {

@@ -34,6 +34,6 @@ export const appEvents = {
   deliverySubmitted: 'delivery:submit',
   contactsSubmitted: 'contacts:submit',
   buyerInput: 'buyer:input',
-  closeRequested: 'modal:close-request',
+  receiptClosed: 'receipt:close',
   catalogRetried: 'catalog:retry',
 } as const;

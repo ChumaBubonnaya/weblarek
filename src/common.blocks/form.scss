@@ -7,6 +7,22 @@
   gap: 1.5rem;
   border-radius: 3rem;
 
+  &__submit {
+    padding: 0;
+    margin: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  &__messages {
+    @include mixins.flex(column);
+    gap: 0.25rem;
+  }
+
+  &__request-error:empty {
+    display: none;
+  }
+
   &__label {
     flex-grow: 1;
   }

@@ -34,7 +34,7 @@ const templates = {
 };
 const gallery = new CatalogView(ensureElement('.gallery'));
 const header = new HeaderView(ensureElement('.header'), events);
-const modal = new ModalView(ensureElement('#modal-container'), events);
+const modal = new ModalView(ensureElement('#modal-container'));
 const details = new ProductDetails(cloneTemplate('#card-preview'), events);
 const basket = new CartView(cloneTemplate('#basket'), events);
 const delivery = new DeliveryForm(cloneTemplate<HTMLFormElement>('#order'), events);
@@ -48,7 +48,6 @@ function openModal(content: HTMLElement): void {
 }
 
 function renderCart(): void {
-    const pending = orderRequest.getState().pending;
     const items = cart.getProducts().map((product, index) => {
         // Брокер создаёт адаптер события; callback вызывается представлением.
         const onRemove = events.trigger<TProductSelection>(appEvents.productRemoved, { id: product.id });
@@ -57,47 +56,38 @@ function renderCart(): void {
             title: product.title,
             price: product.price,
             position: index + 1,
-            removeDisabled: pending,
         });
     });
-    basket.render({ items, total: cart.getTotalPrice(), canCheckout: items.length > 0 && !pending });
+    basket.render({ items, total: cart.getTotalPrice(), canCheckout: items.length > 0 });
     header.render({ count: cart.getAmountProducts() });
 }
 
-function renderDetails(): void {
+function renderProductAction(): void {
     const product = catalog.getSelectedProduct();
     if (!product) return;
     const available = product.price !== null;
     details.render({
-        title: product.title,
-        price: product.price,
-        image: `${CDN_URL}${product.image}`,
-        category: product.category,
-        description: product.description,
         actionText: available
             ? (cart.checkProduct(product.id) ? 'Удалить из корзины' : 'Купить')
             : 'Недоступно',
-        actionDisabled: !available || orderRequest.getState().pending,
+        actionDisabled: !available,
     });
 }
 
 function renderForms(): void {
     const data = buyer.getData();
     const errors = buyer.validate();
-    const request = orderRequest.getState();
     delivery.render({
         payment: data.payment,
         address: data.address,
         errors: [errors.payment, errors.address].filter(Boolean).join('. '),
-        valid: !errors.payment && !errors.address && !request.pending,
-        busy: request.pending,
+        valid: !errors.payment && !errors.address,
     });
     contacts.render({
         email: data.email,
         phone: data.phone,
-        errors: [errors.email, errors.phone, request.error].filter(Boolean).join('. '),
-        valid: Object.keys(errors).length === 0 && cart.getAmountProducts() > 0 && !request.pending,
-        busy: request.pending,
+        errors: [errors.email, errors.phone].filter(Boolean).join('. '),
+        valid: !errors.email && !errors.phone,
     });
 }
 
@@ -131,13 +121,22 @@ events.on<TProductSelection>(appEvents.productSelected, ({ id }) => {
 });
 
 events.on(appEvents.selectionChanged, () => {
-    renderDetails();
+    const product = catalog.getSelectedProduct();
+    if (!product) return;
+    details.render({
+        title: product.title,
+        price: product.price,
+        image: `${CDN_URL}${product.image}`,
+        category: product.category,
+        description: product.description,
+    });
+    renderProductAction();
     openModal(details.render());
 });
 
 events.on(appEvents.productAction, () => {
     const product = catalog.getSelectedProduct();
-    if (!product || product.price === null || orderRequest.getState().pending) return;
+    if (!product || product.price === null) return;
     if (cart.checkProduct(product.id)) cart.removeProduct(product.id);
     else cart.addProduct(product);
     modal.close();
@@ -145,41 +144,38 @@ events.on(appEvents.productAction, () => {
 
 events.on(appEvents.cartChanged, () => {
     renderCart();
-    renderDetails();
-    renderForms();
+    renderProductAction();
 });
 
 events.on<TProductSelection>(appEvents.productRemoved, ({ id }) => {
-    if (!orderRequest.getState().pending && cart.checkProduct(id)) cart.removeProduct(id);
+    if (cart.checkProduct(id)) cart.removeProduct(id);
 });
 
 events.on(appEvents.cartOpened, () => {
-    renderCart();
     openModal(basket.render());
 });
 
 events.on(appEvents.checkoutStarted, () => {
     if (!cart.getAmountProducts() || orderRequest.getState().pending) return;
     orderRequest.reset();
-    renderForms();
     openModal(delivery.render());
 });
 
 events.on<Partial<IBuyer>>(appEvents.buyerInput, (data) => {
-    if (!orderRequest.getState().pending) buyer.setData(data);
+    buyer.setData(data);
 });
 
 events.on(appEvents.buyerChanged, renderForms);
 
 events.on(appEvents.deliverySubmitted, () => {
     const errors = buyer.validate();
-    if (errors.payment || errors.address || !cart.getAmountProducts() || orderRequest.getState().pending) return;
-    renderForms();
+    if (errors.payment || errors.address) return;
     openModal(contacts.render());
 });
 
 events.on(appEvents.contactsSubmitted, async () => {
-    if (orderRequest.getState().pending || !cart.getAmountProducts() || Object.keys(buyer.validate()).length) return;
+    const errors = buyer.validate();
+    if (errors.email || errors.phone) return;
     const data = buyer.getData();
     const order: IOrder = {
         ...data,
@@ -199,9 +195,7 @@ events.on(appEvents.contactsSubmitted, async () => {
 
 events.on(appEvents.requestChanged, () => {
     const request = orderRequest.getState();
-    renderForms();
-    renderCart();
-    renderDetails();
+    contacts.render({ busy: request.pending, requestError: request.error });
     if (request.receipt) {
         cart.clearCart();
         buyer.clearData();
@@ -209,10 +203,12 @@ events.on(appEvents.requestChanged, () => {
     }
 });
 
-events.on(appEvents.closeRequested, () => modal.close());
+events.on(appEvents.receiptClosed, () => modal.close());
 events.on(appEvents.catalogRetried, () => {
     modal.close();
     void loadCatalog();
 });
 
+// Начальное состояние форм поступает из модели после установки подписок.
+buyer.clearData();
 void loadCatalog();

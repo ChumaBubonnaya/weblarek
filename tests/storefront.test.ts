@@ -24,7 +24,7 @@ const input = (name: string, value: string) => {
     field.dispatchEvent(new Event('input', { bubbles: true }));
 };
 const active = () => element('.modal').classList.contains('modal_active');
-const submitDisabled = () => element<HTMLButtonElement>('.modal button[type="submit"]').disabled;
+const submitDisabled = () => element<HTMLButtonElement>('.modal button[type="submit"]').matches(':disabled');
 const counter = () => element('.header__basket-counter').textContent;
 const openProduct = (index = 0) => click(`.gallery > :nth-child(${index + 1})`);
 const addProduct = (index = 0) => { openProduct(index); click('.modal .card__button'); };
@@ -45,7 +45,7 @@ beforeEach(() => {
     fetchMock.mockImplementation(async () => response({ total: products.length, items: products }));
     vi.stubGlobal('fetch', fetchMock);
 });
-afterEach(() => { vi.unstubAllGlobals(); document.body.replaceChildren(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); document.body.replaceChildren(); });
 
 async function start() {
     await import('../src/main');
@@ -151,9 +151,9 @@ describe('Оформление', () => {
         await start(); addProduct(); addProduct(1); openContacts(); fillContacts();
         let finish!: (result: ReturnType<typeof response>) => void;
         fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-        const form = element<HTMLFormElement>('.modal form');
-        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        // Проверяем пользовательские клики; dispatchEvent обходит disabled-контролы.
+        click('.modal button[type="submit"]');
+        click('.modal button[type="submit"]');
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(submitDisabled()).toBe(true);
         expect(counter()).toBe('2');
@@ -182,7 +182,7 @@ describe('Оформление', () => {
         await start(); addProduct(); openContacts(); fillContacts();
         fetchMock.mockResolvedValueOnce(response({ error: 'Ошибка сервера' }, false));
         click('.modal button[type="submit"]');
-        await vi.waitFor(() => expect(element('.form__errors').textContent).toContain('Не удалось отправить заказ'));
+        await vi.waitFor(() => expect(element('.form__request-error').textContent).toContain('Не удалось отправить заказ'));
         expect(counter()).toBe('1');
         expect(element<HTMLInputElement>('.modal [name="email"]').value).toBe('test@example.com');
         expect(submitDisabled()).toBe(false);
@@ -192,17 +192,24 @@ describe('Оформление', () => {
         expect(counter()).toBe('0');
     });
 
-    it('не меняет отправленный заказ, если окно закрыли во время запроса', async () => {
+    it('не открывает новое оформление во время запроса, сохраняя работу корзины', async () => {
         await start(); addProduct(); openContacts(); fillContacts();
         let finish!: (result: ReturnType<typeof response>) => void;
         fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
         click('.modal button[type="submit"]'); click('.modal__close'); openCart();
+        click('.basket__button');
+        expect(document.querySelector('.modal .basket')).not.toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(2);
         click('.basket__item-delete');
+        expect(counter()).toBe('0');
+        click('.modal__close'); addProduct(1); openCart();
         expect(counter()).toBe('1');
-        expect(element<HTMLButtonElement>('.basket__button').disabled).toBe(true);
+        click('.basket__button');
+        expect(document.querySelector('.modal .basket')).not.toBeNull();
+        expect(JSON.parse(fetchMock.mock.calls[1][1].body).items).toEqual(['first']);
         finish(response({ id: 'order', total: 750 }));
-        await vi.waitFor(() => expect(counter()).toBe('0'));
-        expect(element('.order-success__title').textContent).toBe('Заказ оформлен');
+        await vi.waitFor(() => expect(document.querySelector('.order-success__title')?.textContent).toBe('Заказ оформлен'));
+        expect(counter()).toBe('0');
     });
 });
 
@@ -215,5 +222,76 @@ describe('Отказ загрузки', () => {
         click('.catalog-error__retry');
         await vi.waitFor(() => expect(document.querySelectorAll('.gallery > .card')).toHaveLength(4));
         expect(active()).toBe(false);
+    });
+});
+
+describe('Регрессии замечаний к презентеру', () => {
+    it('не пересоздаёт позиции корзины при повторном открытии', async () => {
+        await start(); addProduct(); openCart();
+        const row = element('.basket__item');
+        click('.modal__close'); openCart();
+        expect(element('.basket__item')).toBe(row);
+        expect(element<HTMLButtonElement>('.basket__button').disabled).toBe(false);
+    });
+
+    it('не перезаписывает данные покупателя при открытии окон и изменении корзины', async () => {
+        const { DeliveryForm } = await import('../src/components/views/DeliveryForm');
+        const { ContactForm } = await import('../src/components/views/ContactForm');
+        const setAddress = vi.spyOn(DeliveryForm.prototype, 'address', 'set');
+        const setEmail = vi.spyOn(ContactForm.prototype, 'email', 'set');
+        await start(); addProduct(); openContacts(); fillContacts();
+        setAddress.mockClear(); setEmail.mockClear();
+        click('.modal__close'); openDelivery();
+        click('.modal button[type="submit"]');
+        expect(element<HTMLInputElement>('.modal [name="email"]').value).toBe('test@example.com');
+        click('.modal__close'); openCart(); click('.basket__item-delete');
+        expect(setAddress).not.toHaveBeenCalled();
+        expect(setEmail).not.toHaveBeenCalled();
+    });
+
+    it('валидирует контакты независимо от первого шага и состояния корзины', async () => {
+        const { EventEmitter } = await import('../src/components/base/Events');
+        const { appEvents } = await import('../src/utils/constants');
+        const subscribe = vi.spyOn(EventEmitter.prototype, 'on');
+        await start(); addProduct(); openContacts(); fillContacts();
+        const broker = subscribe.mock.contexts[0];
+        // Меняем модель через тот же публичный событийный интерфейс, что использует View.
+        broker.emit(appEvents.buyerInput, { payment: '', address: '' });
+        broker.emit(appEvents.productRemoved, { id: 'first' });
+        expect(counter()).toBe('0');
+        expect(submitDisabled()).toBe(false);
+        expect(element('.modal .form__errors').textContent).toBe('');
+        input('phone', '  ');
+        expect(submitDisabled()).toBe(true);
+        expect(element('.modal .form__errors').textContent).toContain('телефона');
+    });
+
+    it('при изменении запроса обновляет только ожидание и сетевую ошибку', async () => {
+        const { DeliveryForm } = await import('../src/components/views/DeliveryForm');
+        const { ContactForm } = await import('../src/components/views/ContactForm');
+        const { CheckoutForm } = await import('../src/components/views/CheckoutForm');
+        const { CartView } = await import('../src/components/views/CartView');
+        const { IllustratedProductCard } = await import('../src/components/views/IllustratedProductCard');
+        const setters = [
+            vi.spyOn(DeliveryForm.prototype, 'address', 'set'),
+            vi.spyOn(ContactForm.prototype, 'email', 'set'),
+            vi.spyOn(CheckoutForm.prototype, 'valid', 'set'),
+            vi.spyOn(CheckoutForm.prototype, 'errors', 'set'),
+            vi.spyOn(CartView.prototype, 'items', 'set'),
+            vi.spyOn(IllustratedProductCard.prototype, 'title', 'set'),
+        ];
+        await start(); addProduct(); openContacts(); fillContacts();
+        setters.forEach(spy => spy.mockClear());
+        let finish!: (result: ReturnType<typeof response>) => void;
+        fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+        click('.modal button[type="submit"]');
+        expect(submitDisabled()).toBe(true);
+        // valid остаётся true, а доступность оплаты временно ограничивает fieldset.
+        expect(element<HTMLButtonElement>('.modal button[type="submit"]').disabled).toBe(false);
+        setters.forEach(spy => expect(spy).not.toHaveBeenCalled());
+        finish(response({ error: 'Сбой сервера' }, false));
+        await vi.waitFor(() => expect(element('.form__request-error').textContent).toContain('Не удалось отправить заказ'));
+        expect(submitDisabled()).toBe(false);
+        setters.forEach(spy => expect(spy).not.toHaveBeenCalled());
     });
 });
